@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sipariş Yönetim Sistemi - Premium Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { 
+                        brand: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 900: '#312e81' },
+                        dark: { 800: '#1e293b', 900: '#0f172a' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        
+        @media print {
+            @page { size: A4; margin: 15mm; }
+            body * { visibility: hidden; }
+            #print-area { display: block; position: absolute; left: 0; top: 0; width: 100%; visibility: visible; background: white; color: black; }
+            #print-area * { visibility: visible; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-800 h-screen w-screen flex flex-col overflow-hidden bg-slate-50 relative selection:bg-brand-500 selection:text-white">
+
+    <!-- Arka Plan Deseni -->
+    <div class="absolute inset-0 z-0 pointer-events-none opacity-5" style="background-image: radial-gradient(#4f46e5 1px, transparent 1px); background-size: 24px 24px;"></div>
+
+    <!-- Fatura A4 Yazdırma Alanı (Gizli) -->
+    <div id="print-area" class="p-8 bg-white text-black hidden">
+        <div class="border-b-2 border-slate-800 pb-4 mb-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-4xl font-black tracking-tighter uppercase">SİPARİŞ FİŞİ</h1>
+                <p class="text-slate-500 text-sm mt-1">Resmi Teslimat Belgesi</p>
+            </div>
+            <div class="text-right">
+                <p class="text-2xl font-bold" id="print-order-no">#000000</p>
+                <p class="text-sm text-slate-500 font-medium" id="print-date">Tarih</p>
+            </div>
+        </div>
+        <div class="mb-8 grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div>
+                <h3 class="font-bold text-slate-700 uppercase text-xs mb-1">Müşteri Bilgileri</h3>
+                <p class="font-bold text-lg" id="print-c-name">İsim</p>
+                <p class="text-sm mt-1" id="print-c-phone">Telefon</p>
+                <p class="text-sm" id="print-c-address">Adres</p>
+            </div>
+            <div class="text-right">
+                <h3 class="font-bold text-slate-700 uppercase text-xs mb-1">Teslimat Sorumlusu (Şoför)</h3>
+                <p class="font-bold text-lg" id="print-driver">Şoför Adı</p>
+            </div>
+        </div>
+        <table class="w-full text-left border-collapse mb-8">
+            <thead>
+                <tr class="border-b-2 border-slate-800 text-slate-700">
+                    <th class="py-3 px-2">Ürün Açıklaması</th>
+                    <th class="py-3 px-2 text-center">Birim Fiyat</th>
+                    <th class="py-3 px-2 text-center">Miktar</th>
+                    <th class="py-3 px-2 text-right">Toplam Tutar</th>
+                </tr>
+            </thead>
+            <tbody id="print-items" class="divide-y divide-slate-200"></tbody>
+        </table>
+        <div class="flex justify-end border-t-2 border-slate-800 pt-6">
+            <div class="text-right">
+                <p class="text-slate-600 uppercase text-sm font-bold mb-1">Genel Toplam</p>
+                <p class="text-4xl font-black tracking-tight" id="print-total">₺0</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bildirim ve Yükleme Ekranları -->
+    <div id="toast-container" class="fixed top-6 right-6 z-50 flex flex-col gap-3"></div>
+    <div id="loading-screen" class="fixed inset-0 bg-dark-900 z-[100] flex flex-col items-center justify-center">
+        <div class="relative w-20 h-20">
+            <div class="absolute inset-0 border-4 border-white/20 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-brand-500 rounded-full border-t-transparent animate-spin"></div>
+        </div>
+        <p class="text-lg font-semibold text-white mt-4 tracking-widest uppercase text-sm">Sisteme Bağlanıyor</p>
+    </div>
+
+    <!-- Özel Onay Penceresi -->
+    <div id="custom-confirm" class="hidden fixed inset-0 bg-slate-900/40 z-[200] flex items-center justify-center p-4 backdrop-blur-sm fade-in">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center slide-up border border-slate-100">
+            <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 mb-2">Emin misiniz?</h3>
+            <p id="confirm-message" class="text-slate-500 text-sm mb-6">Bu işlem geri alınamaz.</p>
+            <div class="flex gap-3">
+                <button onclick="closeConfirm()" class="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200 py-3 rounded-xl font-semibold transition">İptal</button>
+                <button id="confirm-btn" class="flex-1 bg-red-500 text-white hover:bg-red-600 py-3 rounded-xl font-semibold transition shadow-lg shadow-red-500/30">Evet, Sil</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex h-full w-full z-10 relative">
+        <!-- Sidebar -->
+        <aside class="w-72 bg-dark-900 text-slate-300 flex flex-col transition-all duration-300 shadow-2xl border-r border-slate-800 hidden md:flex">
+            <div class="h-20 flex items-center px-8 border-b border-white/5 bg-dark-800/50">
+                <div class="w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-700 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/20 mr-3">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                </div>
+                <div>
+                    <span class="text-white font-black text-xl tracking-tight block leading-none">SİPARİŞ YS</span>
+                    <span class="text-brand-400 text-[10px] font-bold uppercase tracking-wider">Yönetici Paneli</span>
+                </div>
+            </div>
+            <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-1">
+                <button onclick="switchTab('dashboard')" class="nav-btn w-full text-left flex items-center px-4 py-3 text-sm font-medium rounded-xl text-white bg-brand-600/10 text-brand-400 transition-all" data-target="dashboard">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    Dashboard
+                </button>
+                <button onclick="switchTab('orders')" class="nav-btn w-full text-left flex items-center px-4 py-3 text-sm font-medium rounded-xl hover:bg-white/5 transition-all text-slate-400" data-target="orders">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    Tüm Siparişler
+                </button>
+                <button onclick="switchTab('new-order')" class="nav-btn w-full text-left flex items-center px-4 py-3 text-sm font-bold rounded-xl bg-brand-500 text-white shadow-lg shadow-brand-500/20 hover:bg-brand-600 transition-all mt-2 mb-4" data-target="new-order">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    Yeni Sipariş
+                </button>
+                
+                <div class="pt-4 pb-1"><p class="px-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Kayıtlar</p></div>
+                <button onclick="switchTab('customers')" class="nav-btn w-full text-left flex items-center px-4 py-3 text-sm font-medium rounded-xl hover:bg-white/5 transition-all text-slate-400" data-target="customers">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Müşteriler
+                </button>
+                <button onclick="switchTab('products')" class="nav-btn w-full text-left flex items-center px-4 py-3 text-sm font-medium rounded-xl hover:bg-white/5 transition-all text-slate-400" data-target="products">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                    Ürünler
+                </button>
+                <button onclick="switchTab('drivers')" class="nav-btn w-full text-left flex items-center px-4 py-3 text-sm font-medium rounded-xl hover:bg-white/5 transition-all text-slate-400" data-target="drivers">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                    Şoförler
+                </button>
+                
+                <div class="pt-4 pb-1"><p class="px-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest">Analiz</p></div>
+                <button onclick="switchTab('reports')" class="nav-btn w-full text-left flex items-center px-4 py-3 text-sm font-medium rounded-xl hover:bg-white/5 transition-all text-slate-400" data-target="reports">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    Raporlar
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Ana İçerik Alanı -->
+        <main class="flex-1 flex flex-col min-w-0 overflow-y-auto p-4 md:p-10 relative">
+            
+            <!-- Dashboard View -->
+            <div id="view-dashboard" class="view-section slide-up space-y-8">
+                <div>
+                    <h1 class="text-3xl font-black text-slate-900 tracking-tight">Dashboard</h1>
+                    <p class="text-sm text-slate-500 mt-1 font-medium">Sisteminizin bugünkü genel durumu.</p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="glass-card rounded-2xl shadow-sm border border-slate-200/60 p-6 relative overflow-hidden group hover:shadow-md transition">
+                        <div class="absolute -right-4 -top-4 w-24 h-24 bg-brand-500/10 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Bugün Toplam</p>
+                                <p class="text-4xl font-black text-slate-800" id="stat-total-orders">0</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg></div>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-2xl shadow-sm border border-slate-200/60 p-6 relative overflow-hidden group hover:shadow-md transition">
+                        <div class="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/10 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Teslim Edilen</p>
+                                <p class="text-4xl font-black text-emerald-600" id="stat-delivered-orders">0</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg></div>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-2xl shadow-sm border border-slate-200/60 p-6 relative overflow-hidden group hover:shadow-md transition">
+                        <div class="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/10 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Bekleyen</p>
+                                <p class="text-4xl font-black text-amber-500" id="stat-pending-orders">0</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-2xl shadow-sm border border-slate-200/60 p-6 relative overflow-hidden group hover:shadow-md transition">
+                        <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Günlük Ciro</p>
+                                <p class="text-3xl font-black text-purple-600 truncate" id="stat-total-revenue">₺0</p>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-orders" class="view-section hidden fade-in space-y-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 class="text-3xl font-black text-slate-900 tracking-tight">Tüm Siparişler</h1>
+                        <p class="text-sm text-slate-500 mt-1 font-medium">Sistemdeki tüm kayıtlı teslimatlar.</p>
+                    </div>
+                    <button onclick="switchTab('new-order')" class="bg-brand-500 hover:bg-brand-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition shadow-lg shadow-brand-500/30 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg> Yeni Ekle
+                    </button>
+                </div>
+                <div class="glass-card rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-100">
+                            <thead class="bg-slate-50/50">
+                                <tr>
+                                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Sipariş No & Tarih</th>
+                                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Müşteri</th>
+                                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Durum</th>
+                                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Şoför</th>
+                                    <th class="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Tutar</th>
+                                    <th class="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-new-order" class="view-section hidden fade-in space-y-6 max-w-6xl mx-auto w-full">
+                <div>
+                    <h1 class="text-3xl font-black text-slate-900 tracking-tight">Yeni Sipariş Oluştur</h1>
+                    <p class="text-sm text-slate-500 mt-1 font-medium">Hızlı ve kolay sipariş girişi.</p>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    
+                    <!-- Sol Taraf: Müşteri & Şoför -->
+                    <div class="lg:col-span-5 space-y-6">
+                        <div class="glass-card rounded-2xl shadow-sm border border-slate-200/60 p-6">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>
+                                <h2 class="font-bold text-slate-800 text-lg">Müşteri Bilgileri</h2>
+                            </div>
+                            <div class="space-y-4">
+                                <select id="no-customer-select" onchange="fillCustomerDetails(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition">
+                                    <option value="">-- Yeni Müşteri (Aşağıya Girin) --</option>
+                                </select>
+                                <div class="relative">
+                                    <input type="text" id="no-customer-name" placeholder="Müşteri Adı Soyadı (Zorunlu)" class="w-full border border-slate-200 rounded-xl p-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition">
+                                </div>
+                                <div class="relative">
+                                    <input type="text" id="no-customer-phone" placeholder="Telefon Numarası" class="w-full border border-slate-200 rounded-xl p-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition">
+                                </div>
+                                <textarea id="no-customer-address" placeholder="Teslimat Adresi" rows="2" class="w-full border border-slate-200 rounded-xl p-3.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition resize-none"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="glass-card rounded-2xl shadow-sm border border-slate-200/60 p-6">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-500 flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg></div>
+                                <h2 class="font-bold text-slate-800 text-lg">Şoför Ataması</h2>
+                            </div>
+                            <select id="no-driver-select" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition">
+                                <option value="">-- Atama Yapılmadı --</option>
+                            </select>
+                            <p class="text-[11px] font-medium text-slate-400 mt-2 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Tek şoför varsa sistem otomatik atar.</p>
+                        </div>
+                    </div>
+
+                    <!-- Sağ Taraf: Sepet & Özet -->
+                    <div class="lg:col-span-7 glass-card rounded-2xl shadow-sm border border-slate-200/60 flex flex-col overflow-hidden relative">
+                        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-brand-100 text-brand-600 flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg></div>
+                                <h2 class="font-bold text-slate-800 text-lg">Sipariş Sepeti</h2>
+                            </div>
+                            <button onclick="addOrderItemRow()" class="bg-white border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-sm hover:bg-slate-50 transition shadow-sm flex items-center gap-2">
+                                <svg class="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg> Ürün Ekle
+                            </button>
+                        </div>
+                        
+                        <div class="p-6 flex-1 overflow-y-auto bg-white/50">
+                            <div id="no-items-container" class="space-y-3">
+                                <!-- Sepet JS ile dolacak -->
+                            </div>
+                        </div>
+                        
+                        <div class="p-6 bg-slate-50 border-t border-slate-100 mt-auto">
+                            <div class="flex justify-between items-end mb-6">
+                                <span class="text-slate-500 font-bold uppercase text-sm tracking-wider">Genel Toplam</span>
+                                <span id="no-grand-total" class="text-4xl font-black text-slate-900 tracking-tighter">₺0,00</span>
+                            </div>
+                            <button onclick="saveNewOrder()" class="w-full bg-slate-900 hover:bg-black text-white font-bold py-4 rounded-xl text-lg shadow-xl shadow-slate-900/20 transition transform active:scale-[0.98] flex items-center justify-center gap-2">
+                                Siparişi Onayla ve Gönder <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customers -->
+            <div id="view-customers" class="view-section hidden fade-in space-y-6">
+                <h1 class="text-3xl font-black text-slate-900 tracking-tight">Müşteri Rehberi</h1>
+                <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-200/60 flex flex-col md:flex-row gap-3 bg-slate-50/50">
+                    <input type="text" id="add-cust-name" placeholder="Müşteri Adı Soyadı" class="border border-slate-200 p-3 rounded-xl flex-1 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500">
+                    <input type="text" id="add-cust-phone" placeholder="Telefon" class="border border-slate-200 p-3 rounded-xl md:w-48 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500">
+                    <input type="text" id="add-cust-address" placeholder="Adres" class="border border-slate-200 p-3 rounded-xl flex-1 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500">
+                    <button onclick="addCustomer()" class="bg-brand-500 hover:bg-brand-600 text-white px-8 py-3 rounded-xl text-sm font-bold transition shadow-md shadow-brand-500/20">Kaydet</button>
+                </div>
+                <div class="glass-card rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                    <table class="min-w-full divide-y divide-slate-100"><thead class="bg-slate-50/50"><tr><th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Müşteri</th><th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Telefon</th><th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Adres</th><th class="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">İşlem</th></tr></thead><tbody id="customers-table-body" class="divide-y divide-slate-100 text-sm"></tbody></table>
+                </div>
+            </div>
+            
+            <!-- Products -->
+            <div id="view-products" class="view-section hidden fade-in space-y-6">
+                <h1 class="text-3xl font-black text-slate-900 tracking-tight">Ürün Kataloğu</h1>
+                <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-200/60 flex flex-col md:flex-row gap-3 bg-slate-50/50">
+                    <input type="text" id="add-prod-name" placeholder="Örn: Somun Ekmek" class="border border-slate-200 p-3 rounded-xl flex-1 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500">
+                    <div class="relative md:w-48">
+                        <span class="absolute left-3 top-3 text-slate-400 font-bold">₺</span>
+                        <input type="number" id="add-prod-price" placeholder="Fiyat" class="border border-slate-200 p-3 pl-8 rounded-xl w-full text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <button onclick="addProduct()" class="bg-brand-500 hover:bg-brand-600 text-white px-8 py-3 rounded-xl text-sm font-bold transition shadow-md shadow-brand-500/20">Ürün Ekle</button>
+                </div>
+                <div class="glass-card rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                    <table class="min-w-full divide-y divide-slate-100"><thead class="bg-slate-50/50"><tr><th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Ürün Adı</th><th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Birim Fiyatı</th><th class="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">İşlem</th></tr></thead><tbody id="products-table-body" class="divide-y divide-slate-100 text-sm"></tbody></table>
+                </div>
+            </div>
+
+            <!-- Drivers -->
+            <div id="view-drivers" class="view-section hidden fade-in space-y-6">
+                <h1 class="text-3xl font-black text-slate-900 tracking-tight">Teslimat Personelleri</h1>
+                <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-200/60 flex gap-3 bg-slate-50/50">
+                    <input type="text" id="add-driver-name" placeholder="Şoför Adı Soyadı" class="border border-slate-200 p-3 rounded-xl flex-1 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500">
+                    <button onclick="addDriver()" class="bg-brand-500 hover:bg-brand-600 text-white px-8 py-3 rounded-xl text-sm font-bold transition shadow-md shadow-brand-500/20">Şoför Ekle</button>
+                </div>
+                <div class="glass-card rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+                    <table class="min-w-full divide-y divide-slate-100"><thead class="bg-slate-50/50"><tr><th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Şoför Bilgisi</th><th class="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">İşlem</th></tr></thead><tbody id="drivers-table-body" class="divide-y divide-slate-100 text-sm"></tbody></table>
+                </div>
+            </div>
+
+            <div id="view-reports" class="view-section hidden fade-in space-y-6">
+                <div>
+                    <h1 class="text-3xl font-black text-slate-900 tracking-tight">Raporlar & Analiz</h1>
+                    <p class="text-sm text-slate-500 mt-1 font-medium">Tarih aralığı seçerek performans ölçümü yapın.</p>
+                </div>
+                <div class="glass-card p-6 rounded-2xl shadow-sm border border-slate-200/60 flex flex-col md:flex-row gap-4 items-end bg-slate-50/50">
+                    <div class="flex-1">
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Başlangıç Tarihi</label>
+                        <input type="date" id="report-start" class="border border-slate-200 rounded-xl p-3.5 w-full text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Bitiş Tarihi</label>
+                        <input type="date" id="report-end" class="border border-slate-200 rounded-xl p-3.5 w-full text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <button onclick="generateReport()" class="bg-slate-900 hover:bg-black text-white px-8 py-3.5 rounded-xl font-bold transition shadow-lg shadow-slate-900/20 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg> Rapor Oluştur
+                    </button>
+                </div>
+                
+                <div id="report-results" class="grid grid-cols-2 md:grid-cols-4 gap-6 hidden fade-in">
+                    <div class="glass-card p-6 rounded-2xl border border-slate-200/60 shadow-sm relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-2 h-full bg-slate-300"></div>
+                        <p class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Seçilen Tarihte Sipariş</p>
+                        <p class="text-4xl font-black mt-2 text-slate-800" id="rep-total">0</p>
+                    </div>
+                    <div class="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100 shadow-sm relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-2 h-full bg-emerald-400"></div>
+                        <p class="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">Teslim Edilen</p>
+                        <p class="text-4xl font-black mt-2 text-emerald-900" id="rep-delivered">0</p>
+                    </div>
+                    <div class="bg-red-50/50 p-6 rounded-2xl border border-red-100 shadow-sm relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-2 h-full bg-red-400"></div>
+                        <p class="text-[11px] font-bold text-red-700 uppercase tracking-widest">İptal Edilen</p>
+                        <p class="text-4xl font-black mt-2 text-red-900" id="rep-cancelled">0</p>
+                    </div>
+                    <div class="bg-purple-50/50 p-6 rounded-2xl border border-purple-100 shadow-sm relative overflow-hidden">
+                        <div class="absolute right-0 top-0 w-2 h-full bg-purple-400"></div>
+                        <p class="text-[11px] font-bold text-purple-700 uppercase tracking-widest">Oluşan Ciro</p>
+                        <p class="text-3xl font-black mt-2 text-purple-900 truncate" id="rep-revenue">₺0</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="order-detail-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm fade-in">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col slide-up max-h-[90vh] border border-slate-100">
+            <div class="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 backdrop-blur-md sticky top-0 z-10">
+                <h3 class="text-xl font-black text-slate-800 tracking-tight">Sipariş Yönetimi</h3>
+                <button onclick="document.getElementById('order-detail-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-700 bg-white shadow-sm border border-slate-200 p-2 rounded-full transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-8 overflow-y-auto flex-1 bg-white">
+                <div class="flex justify-between items-start mb-8">
+                    <div>
+                        <p class="text-xs font-bold text-brand-500 mb-1 tracking-widest" id="od-order-no">#000000</p>
+                        <p class="font-black text-3xl text-slate-900 tracking-tight" id="od-customer-name"></p>
+                        <p class="text-sm font-medium text-slate-500 mt-2 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
+                            <span id="od-address"></span>
+                        </p>
+                    </div>
+                    <span id="od-status-badge" class="px-4 py-2 rounded-xl text-sm font-bold shadow-sm"></span>
+                </div>
+                
+                <div class="mb-8">
+                    <h4 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">Sipariş İçeriği</h4>
+                    <div class="bg-slate-50 rounded-2xl border border-slate-100 p-2">
+                        <table class="w-full text-sm">
+                            <tbody id="od-items-list" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                    <div class="text-right mt-4 pr-2">
+                        <span class="text-slate-400 text-sm font-bold uppercase tracking-widest">Genel Toplam:</span>
+                        <span class="font-black text-3xl text-slate-900 ml-3 tracking-tighter" id="od-total"></span>
+                    </div>
+                </div>
+                
+                <div class="bg-brand-50/50 border border-brand-100/50 rounded-2xl p-5 mb-8">
+                    <h4 class="text-[11px] font-bold text-brand-700 uppercase tracking-widest mb-3">Atama & Durum</h4>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <select id="od-assign-driver" class="border border-white/80 rounded-xl p-3 flex-1 text-sm font-medium bg-white shadow-sm outline-none focus:ring-2 focus:ring-brand-400 text-slate-700">
+                            <option value="">Şoför Atanmadı</option>
+                        </select>
+                        <select id="od-change-status" class="border border-white/80 rounded-xl p-3 flex-1 text-sm font-medium bg-white shadow-sm outline-none focus:ring-2 focus:ring-brand-400 text-slate-700">
+                            <option value="Bekliyor">Bekliyor</option><option value="Hazırlanıyor">Hazırlanıyor</option><option value="Yola Çıktı">Yola Çıktı</option><option value="Teslim Edildi">Teslim Edildi</option><option value="İptal Edildi">İptal Edildi</option>
+                        </select>
+                        <button id="od-save-btn" class="bg-brand-500 hover:bg-brand-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-brand-500/30 transition">Güncelle</button>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t border-slate-100">
+                    <button onclick="printReceipt()" class="flex-1 bg-slate-900 hover:bg-black text-white py-3.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> A4 Fiş Yazdır
+                    </button>
+                    <button onclick="requestDeleteOrder()" class="sm:w-1/3 bg-white text-red-500 hover:bg-red-50 border border-red-100 py-3.5 rounded-xl text-sm font-bold transition">
+                        Siparişi Sil
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Proje yapılandırması
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7h2h4dTNA_NuRWlacOP6mxcgRlFjpxHQ",
+            authDomain: "sohbet-631fa.firebaseapp.com",
+            databaseURL: "https://sohbet-631fa-default-rtdb.firebaseio.com",
+            projectId: "sohbet-631fa",
+            storageBucket: "sohbet-631fa.firebasestorage.app",
+            messagingSenderId: "642336277638",
+            appId: "1:642336277638:web:b1d6614994f0ba72167d07"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const state = { 
+            products: [], customers: [], drivers: [], orders: [], 
+            currentOrderItems: [], currentOrder: null, confirmCallback: null
+        };
+
+        // Formatter (Para birimi vb.)
+        const fmt = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' });
+
+        // Arayüz Fonksiyonları
+        window.switchTab = (id) => {
+            document.querySelectorAll('.view-section').forEach(el => { el.classList.add('hidden'); el.classList.remove('slide-up'); });
+            const view = document.getElementById('view-' + id);
+            view.classList.remove('hidden');
+            // Trigger reflow for animation
+            void view.offsetWidth; 
+            view.classList.add('slide-up');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if(btn.dataset.target === id) { 
+                    btn.classList.add('bg-brand-500/10','text-brand-400'); 
+                    btn.classList.remove('text-slate-400', 'hover:bg-white/5');
+                } else if(btn.dataset.target !== 'new-order') { 
+                    btn.classList.remove('bg-brand-500/10','text-brand-400'); 
+                    btn.classList.add('text-slate-400', 'hover:bg-white/5'); 
+                }
+            });
+
+            if(id === 'new-order') {
+                document.getElementById('no-customer-name').value = ''; 
+                document.getElementById('no-customer-address').value = ''; 
+                document.getElementById('no-customer-phone').value = '';
+                document.getElementById('no-customer-select').value = ''; 
+                state.currentOrderItems = []; 
+                renderOrderItems();
+            }
+        };
+
+        window.showToast = (msg, type = 'success') => {
+            const container = document.getElementById('toast-container');
+            const t = document.createElement('div'); 
+            const bgColor = type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-slate-900 text-white shadow-xl shadow-slate-900/20';
+            t.className = `${bgColor} px-5 py-3 rounded-2xl slide-up text-sm font-bold flex items-center gap-3`; 
+            const icon = type === 'error' 
+                ? `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`
+                : `<svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+            t.innerHTML = `${icon} ${msg}`;
+            container.appendChild(t); 
+            setTimeout(() => {
+                t.style.opacity = '0';
+                t.style.transform = 'translateY(-10px)';
+                t.style.transition = 'all 0.3s ease';
+                setTimeout(()=>t.remove(), 300);
+            }, 3000);
+        };
+
+        window.showConfirm = (message, callback) => {
+            document.getElementById('confirm-message').textContent = message;
+            state.confirmCallback = callback;
+            document.getElementById('custom-confirm').classList.remove('hidden');
+        };
+
+        window.closeConfirm = () => {
+            document.getElementById('custom-confirm').classList.add('hidden');
+            state.confirmCallback = null;
+        };
+
+        document.getElementById('confirm-btn').addEventListener('click', () => {
+            if(state.confirmCallback) state.confirmCallback();
+            closeConfirm();
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            try {
+                if(user) startDataListeners(); 
+                else await signInAnonymously(auth); 
+            } catch (error) {
+                document.getElementById('loading-screen').innerHTML = `
+                    <div class="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm">
+                        <div class="text-red-500 mb-4"><svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div>
+                        <h2 class="text-xl font-black text-slate-900">Erişim Reddedildi</h2>
+                        <p class="text-sm font-medium text-slate-500 mt-2">Firebase Konsolunuzdan <b>Anonymous (Misafir)</b> girişini etkinleştirmelisiniz.</p>
+                    </div>`;
+            }
+        });
+
+        function startDataListeners() {
+            try {
+                onSnapshot(collection(db, 'products'), s => { state.products = s.docs.map(d=>({id:d.id,...d.data()})); renderProducts(); });
+                onSnapshot(collection(db, 'customers'), s => { state.customers = s.docs.map(d=>({id:d.id,...d.data()})); renderCustomers(); updateCustomerSelect(); });
+                onSnapshot(collection(db, 'drivers'), s => { state.drivers = s.docs.map(d=>({id:d.id,...d.data()})); renderDrivers(); updateDriverSelect(); });
+                onSnapshot(collection(db, 'orders'), s => { 
+                    state.orders = s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=> (b.createdAt?.toMillis()||Date.now()) - (a.createdAt?.toMillis()||Date.now())); 
+                    renderDashboard(); renderOrders(); 
+                    document.getElementById('loading-screen').classList.add('hidden');
+                });
+            } catch (error) {}
+        }
+
+        function renderDashboard() {
+            let total = 0, delivered = 0, pending = 0, rev = 0;
+            const today = new Date(); today.setHours(0,0,0,0);
+            state.orders.forEach(o => { 
+                const oDate = o.createdAt ? o.createdAt.toDate() : new Date();
+                if(oDate >= today) {
+                    total++; 
+                    if(o.status === 'Teslim Edildi'){ delivered++; rev += o.total; } 
+                    else if(o.status !== 'İptal Edildi') pending++;
+                }
+            });
+            document.getElementById('stat-total-orders').textContent = total;
+            document.getElementById('stat-delivered-orders').textContent = delivered;
+            document.getElementById('stat-pending-orders').textContent = pending;
+            document.getElementById('stat-total-revenue').textContent = fmt.format(rev);
+        }
+
+        function renderOrders() {
+            document.getElementById('orders-table-body').innerHTML = state.orders.map(o => {
+                const dateStr = o.createdAt ? o.createdAt.toDate().toLocaleString('tr-TR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '-';
+                
+                let badge = 'bg-slate-100 text-slate-700 border-slate-200';
+                if(o.status === 'Bekliyor') badge = 'bg-amber-50 text-amber-700 border-amber-200';
+                if(o.status === 'Hazırlanıyor') badge = 'bg-orange-50 text-orange-700 border-orange-200';
+                if(o.status === 'Yola Çıktı') badge = 'bg-brand-50 text-brand-700 border-brand-200';
+                if(o.status === 'Teslim Edildi') badge = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                if(o.status === 'İptal Edildi') badge = 'bg-red-50 text-red-700 border-red-200';
+
+                const driver = state.drivers.find(d => d.id === o.driverId);
+                const driverName = driver ? driver.name : '<span class="text-slate-400 italic">Atanmadı</span>';
+
+                return `
+                <tr class="hover:bg-slate-50/80 transition-colors group">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-bold text-slate-900 tracking-tight">${o.orderNumber}</div>
+                        <div class="text-[11px] font-medium text-slate-500 uppercase">${dateStr}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-slate-800">${o.customerName}</div>
+                        <div class="text-xs text-slate-500 truncate max-w-[150px] font-medium">${o.address || '-'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap"><span class="px-3 py-1 text-xs font-bold rounded-lg border ${badge}">${o.status}</span></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-700">${driverName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right font-black text-slate-900 tracking-tighter">${fmt.format(o.total)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                        <button onclick="viewOrder('${o.id}')" class="bg-white border border-slate-200 text-slate-700 hover:text-brand-600 hover:border-brand-200 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition group-hover:shadow-md">Detay</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        window.addProduct = async () => {
+            const name = document.getElementById('add-prod-name').value.trim();
+            const price = Number(document.getElementById('add-prod-price').value);
+            if(!name || !price) return showToast('Ürün adı ve fiyatı zorunludur.', 'error');
+            try { await addDoc(collection(db, 'products'), { name, price }); document.getElementById('add-prod-name').value = ''; document.getElementById('add-prod-price').value = ''; showToast('Ürün eklendi.'); } catch(e) { showToast('Hata!', 'error'); }
+        };
+        window.deleteProduct = (id) => showConfirm("Ürünü silmek istediğinize emin misiniz?", async () => { await deleteDoc(doc(db, 'products', id)); showToast('Silindi.'); });
+        function renderProducts() { document.getElementById('products-table-body').innerHTML = state.products.map(p => `<tr class="hover:bg-slate-50 transition"><td class="px-6 py-4 font-bold text-slate-800">${p.name}</td><td class="px-6 py-4 font-black text-slate-700">${fmt.format(p.price)}</td><td class="px-6 py-4 text-right"><button onclick="deleteProduct('${p.id}')" class="text-red-500 font-bold text-sm hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg transition">Sil</button></td></tr>`).join(''); }
+
+        window.addCustomer = async () => {
+            const name = document.getElementById('add-cust-name').value.trim();
+            const phone = document.getElementById('add-cust-phone').value.trim();
+            const address = document.getElementById('add-cust-address').value.trim();
+            if(!name) return showToast('Müşteri adı zorunludur.', 'error');
+            try { await addDoc(collection(db, 'customers'), { name, phone, address }); document.getElementById('add-cust-name').value = ''; document.getElementById('add-cust-phone').value = ''; document.getElementById('add-cust-address').value = ''; showToast('Kaydedildi.'); } catch(e) { showToast('Hata', 'error'); }
+        };
+        window.deleteCustomer = (id) => showConfirm("Müşteriyi silmek istediğinize emin misiniz?", async () => { await deleteDoc(doc(db, 'customers', id)); showToast('Silindi.'); });
+        function renderCustomers() { document.getElementById('customers-table-body').innerHTML = state.customers.map(c => `<tr class="hover:bg-slate-50 transition"><td class="px-6 py-4 font-bold text-slate-800">${c.name}</td><td class="px-6 py-4 text-slate-600 font-medium">${c.phone||'-'}</td><td class="px-6 py-4 text-slate-600 font-medium truncate max-w-xs">${c.address||'-'}</td><td class="px-6 py-4 text-right"><button onclick="deleteCustomer('${c.id}')" class="text-red-500 font-bold text-sm hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg transition">Sil</button></td></tr>`).join(''); }
+
+        window.addDriver = async () => {
+            const name = document.getElementById('add-driver-name').value.trim();
+            if(!name) return showToast('Şoför adı zorunludur.', 'error');
+            try { await addDoc(collection(db, 'drivers'), { name }); document.getElementById('add-driver-name').value = ''; showToast('Şoför eklendi.'); } catch(e) { showToast('Hata', 'error'); }
+        };
+        window.deleteDriver = (id) => showConfirm("Şoförü silmek istediğinize emin misiniz?", async () => { await deleteDoc(doc(db, 'drivers', id)); showToast('Silindi.'); });
+        function renderDrivers() { document.getElementById('drivers-table-body').innerHTML = state.drivers.map(d => `<tr class="hover:bg-slate-50 transition"><td class="px-6 py-4 font-bold text-slate-800 flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center font-black text-xs">${d.name.charAt(0)}</div>${d.name}</td><td class="px-6 py-4 text-right"><button onclick="deleteDriver('${d.id}')" class="text-red-500 font-bold text-sm hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg transition">Sil</button></td></tr>`).join(''); }
+
+        function updateCustomerSelect() { document.getElementById('no-customer-select').innerHTML = '<option value="">-- Yeni Müşteri (Aşağıya Girin) --</option>' + state.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join(''); }
+        function updateDriverSelect() { 
+            const html = '<option value="">-- Atama Yapılmadı --</option>' + state.drivers.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+            document.getElementById('no-driver-select').innerHTML = html; document.getElementById('od-assign-driver').innerHTML = html;
+            if(state.drivers.length === 1) document.getElementById('no-driver-select').value = state.drivers[0].id;
+        }
+
+        window.fillCustomerDetails = (id) => { 
+            const c = state.customers.find(x => x.id === id); 
+            document.getElementById('no-customer-name').value = c ? c.name : ''; document.getElementById('no-customer-phone').value = c ? (c.phone || '') : ''; document.getElementById('no-customer-address').value = c ? (c.address || '') : ''; 
+        };
+
+        window.addOrderItemRow = () => { state.currentOrderItems.push({ id: Date.now(), pId: '', qty: 1 }); renderOrderItems(); };
+        window.updateItem = (id, field, val) => { const item = state.currentOrderItems.find(i => i.id == id); if(item) { item[field] = val; renderOrderItems(); } };
+        window.removeOrderItem = (id) => { state.currentOrderItems = state.currentOrderItems.filter(i => i.id != id); renderOrderItems(); };
+        
+        function renderOrderItems() {
+            let total = 0; const container = document.getElementById('no-items-container');
+            if(state.currentOrderItems.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 py-10 border-2 border-dashed border-slate-200 rounded-2xl"><div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg></div>Sepette henüz ürün yok.</div>`;
+                document.getElementById('no-grand-total').textContent = '₺0,00'; return;
+            }
+            container.innerHTML = state.currentOrderItems.map(i => {
+                const p = state.products.find(x => x.id === i.pId); const price = p ? p.price : 0; const t = price * i.qty; total += t;
+                return `<div class="flex gap-2 items-center bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm slide-up">
+                    <select onchange="updateItem(${i.id}, 'pId', this.value)" class="border border-slate-200 p-2.5 rounded-lg text-sm font-medium w-full bg-slate-50 outline-none focus:ring-2 focus:ring-brand-500"><option value="">Ürün Seçiniz</option>${state.products.map(px => `<option value="${px.id}" ${i.pId===px.id?'selected':''}>${px.name}</option>`).join('')}</select>
+                    <input type="number" min="1" value="${i.qty}" onchange="updateItem(${i.id}, 'qty', this.value)" class="border border-slate-200 p-2.5 rounded-lg text-sm w-20 text-center font-black bg-slate-50 outline-none focus:ring-2 focus:ring-brand-500">
+                    <span class="w-28 text-right font-black text-slate-800 tracking-tight">${fmt.format(t)}</span>
+                    <button onclick="removeOrderItem(${i.id})" class="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2.5 rounded-lg transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                </div>`;
+            }).join('');
+            document.getElementById('no-grand-total').textContent = fmt.format(total);
+        }
+
+        window.saveNewOrder = async () => {
+            const cName = document.getElementById('no-customer-name').value.trim();
+            if(!cName) return showToast('Lütfen müşteri adını girin.', 'error');
+            const items = state.currentOrderItems.filter(i => i.pId).map(i => { const p = state.products.find(x => x.id === i.pId); return { pId: p.id, name: p.name, qty: Number(i.qty), price: p.price, total: p.price * Number(i.qty) }; });
+            if(items.length === 0) return showToast('Sepete ürün ekleyin.', 'error');
+            const total = items.reduce((sum, i) => sum + i.total, 0);
+            const dateStr = new Date().toISOString().slice(2,10).replace(/-/g, ''); const orderNumber = `#${dateStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+            try {
+                await addDoc(collection(db, 'orders'), { orderNumber, customerName: cName, phone: document.getElementById('no-customer-phone').value.trim(), address: document.getElementById('no-customer-address').value.trim(), driverId: document.getElementById('no-driver-select').value, status: 'Bekliyor', total, items, createdAt: serverTimestamp() });
+                if(!document.getElementById('no-customer-select').value) await addDoc(collection(db, 'customers'), { name: cName, phone: document.getElementById('no-customer-phone').value.trim(), address: document.getElementById('no-customer-address').value.trim() });
+                showToast('Sipariş oluşturuldu!'); switchTab('orders'); 
+            } catch(e) { showToast('Hata', 'error'); }
+        };
+
+        window.viewOrder = (id) => {
+            const o = state.orders.find(x => x.id === id); if(!o) return; state.currentOrder = o;
+            document.getElementById('od-order-no').textContent = o.orderNumber;
+            document.getElementById('od-customer-name').textContent = o.customerName; 
+            document.getElementById('od-address').textContent = (o.phone ? o.phone + ' | ' : '') + (o.address || 'Adres yok');
+            
+            const b = document.getElementById('od-status-badge'); b.textContent = o.status;
+            b.className = 'px-4 py-2 rounded-xl text-sm font-bold shadow-sm border ';
+            if(o.status === 'Bekliyor') b.className += 'bg-amber-50 text-amber-700 border-amber-200';
+            else if(o.status === 'Hazırlanıyor') b.className += 'bg-orange-50 text-orange-700 border-orange-200';
+            else if(o.status === 'Yola Çıktı') b.className += 'bg-brand-50 text-brand-700 border-brand-200';
+            else if(o.status === 'Teslim Edildi') b.className += 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            else if(o.status === 'İptal Edildi') b.className += 'bg-red-50 text-red-700 border-red-200';
+            
+            document.getElementById('od-items-list').innerHTML = o.items.map(i => `<tr><td class="py-3 px-3 font-bold text-slate-800 border-b border-slate-100">${i.name}</td><td class="py-3 px-3 text-center border-b border-slate-100"><span class="bg-white border border-slate-200 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-black shadow-sm">${i.qty} x</span> <span class="text-slate-400 text-[10px] font-bold ml-1">(${fmt.format(i.price)})</span></td><td class="py-3 px-3 text-right font-black tracking-tight text-slate-900 border-b border-slate-100">${fmt.format(i.total)}</td></tr>`).join('');
+            document.getElementById('od-total').textContent = fmt.format(o.total);
+            document.getElementById('od-assign-driver').value = o.driverId || ''; document.getElementById('od-change-status').value = o.status;
+            document.getElementById('order-detail-modal').classList.remove('hidden');
+        };
+
+        document.getElementById('od-save-btn').addEventListener('click', async () => {
+            if(!state.currentOrder) return;
+            try { await updateDoc(doc(db, 'orders', state.currentOrder.id), { driverId: document.getElementById('od-assign-driver').value, status: document.getElementById('od-change-status').value }); document.getElementById('order-detail-modal').classList.add('hidden'); showToast('Sipariş güncellendi.'); } catch(e) { showToast('Hata', 'error'); }
+        });
+
+        window.requestDeleteOrder = () => showConfirm(`Siparişi tamamen silmek istediğinize emin misiniz?`, async () => { await deleteDoc(doc(db, 'orders', state.currentOrder.id)); document.getElementById('order-detail-modal').classList.add('hidden'); showToast('Silindi.'); });
+
+        window.printReceipt = () => {
+            const o = state.currentOrder; if(!o) return;
+            document.getElementById('print-order-no').textContent = o.orderNumber;
+            document.getElementById('print-date').textContent = o.createdAt ? o.createdAt.toDate().toLocaleString('tr-TR') : new Date().toLocaleString('tr-TR');
+            document.getElementById('print-c-name').textContent = o.customerName; document.getElementById('print-c-phone').textContent = o.phone || 'Telefon Yok'; document.getElementById('print-c-address').textContent = o.address || 'Adres Yok';
+            const driver = state.drivers.find(d => d.id === o.driverId); document.getElementById('print-driver').textContent = driver ? driver.name : 'Atanmadı';
+            document.getElementById('print-items').innerHTML = o.items.map(i => `<tr><td class="py-4 px-2 border-b border-slate-200 font-bold text-slate-800">${i.name}</td><td class="py-4 px-2 border-b border-slate-200 text-center text-slate-600 font-medium">${fmt.format(i.price)}</td><td class="py-4 px-2 border-b border-slate-200 text-center font-black">${i.qty}</td><td class="py-4 px-2 border-b border-slate-200 text-right font-black text-lg">${fmt.format(i.total)}</td></tr>`).join('');
+            document.getElementById('print-total').textContent = fmt.format(o.total); window.print();
+        };
+
+        window.generateReport = () => {
+            const startStr = document.getElementById('report-start').value, endStr = document.getElementById('report-end').value;
+            if(!startStr || !endStr) return showToast('Tarihleri seçin.', 'error');
+            const start = new Date(startStr); start.setHours(0,0,0,0); const end = new Date(endStr); end.setHours(23,59,59,999);
+            let tOrders = 0, tDelivered = 0, tCancelled = 0, tRev = 0;
+            state.orders.forEach(o => { if(!o.createdAt) return; const d = o.createdAt.toDate(); if(d >= start && d <= end) { tOrders++; if(o.status === 'Teslim Edildi') { tDelivered++; tRev += o.total; } if(o.status === 'İptal Edildi') tCancelled++; } });
+            document.getElementById('rep-total').textContent = tOrders; document.getElementById('rep-delivered').textContent = tDelivered; document.getElementById('rep-cancelled').textContent = tCancelled; document.getElementById('rep-revenue').textContent = fmt.format(tRev);
+            document.getElementById('report-results').classList.remove('hidden');
+        };
+    </script>
+</body>
+</html>
