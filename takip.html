@@ -122,6 +122,15 @@
                         if(o.status === 'İptal Edildi') { statusColor = 'bg-red-50 text-red-700 border-red-200'; statusIcon = '❌'; }
 
                         const dateText = o.createdAt ? o.createdAt.toDate().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute:'2-digit' }) : '-';
+                        
+                        // Teslimat Tarihini Çekip Formatlama
+                        let deliveryDateHtml = '';
+                        if (o.deliveryDate) {
+                            const dParts = o.deliveryDate.split('-'); // YYYY-MM-DD formatını parçala
+                            const formattedDelivery = dParts.length === 3 ? `${dParts[2]}.${dParts[1]}.${dParts[0]}` : o.deliveryDate;
+                            deliveryDateHtml = `<p class="text-[11px] font-bold text-blue-700 bg-blue-50 inline-block px-2 py-0.5 rounded mt-1.5 border border-blue-100">📅 Teslimat: ${formattedDelivery}</p>`;
+                        }
+
                         const itemsHtml = o.items ? o.items.map(i => `<div class="flex justify-between text-xs py-1.5 border-b border-gray-50 last:border-0"><span class="font-medium text-gray-700">${i.qty}x ${i.name}</span><span class="text-gray-500">₺${i.total}</span></div>`).join('') : '';
 
                         container.innerHTML += `
@@ -129,7 +138,8 @@
                                 <div class="flex justify-between items-start mb-3 border-b border-gray-100 pb-3">
                                     <div>
                                         <p class="text-[10px] font-black text-gray-400 tracking-widest">${o.orderNumber || 'SİPARİŞ'}</p>
-                                        <p class="text-xs font-medium text-gray-500 mt-0.5">${dateText}</p>
+                                        <p class="text-[11px] font-medium text-gray-500 mt-0.5">Sipariş: ${dateText}</p>
+                                        ${deliveryDateHtml}
                                     </div>
                                     <div class="flex items-center gap-1.5 border ${statusColor} px-3 py-1.5 rounded-full shadow-sm">
                                         <span class="text-sm">${statusIcon}</span>
