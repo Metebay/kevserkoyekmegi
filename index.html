@@ -38,6 +38,7 @@
 </head>
 <body class="text-gray-800 overflow-hidden h-screen w-screen flex flex-col">
     
+    <!-- SİPARİŞ FİŞİ YAZDIRMA ALANI -->
     <div id="print-area" class="p-8 bg-white text-black hidden">
         <div class="flex-1">
             <div class="border-b-2 border-gray-800 pb-4 mb-6 flex justify-between items-start">
@@ -88,6 +89,7 @@
         </div>
     </div>
 
+    <!-- GÜNLÜK DAĞITIM LİSTESİ YAZDIRMA ALANI -->
     <div id="print-list-area" class="p-8 bg-white text-black hidden">
         <div class="border-b-2 border-gray-800 pb-4 mb-6 flex justify-between items-end">
             <div>
@@ -128,6 +130,7 @@
         </div>
     </div>
 
+    <!-- UI Elemaları -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
     <div id="loading-screen" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center transition-opacity duration-300">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary mb-4"></div>
@@ -186,7 +189,7 @@
                     </div>
                 </div>
                 
-                <!-- Kasa Özeti (YENİ) -->
+                <!-- Kasa Özeti -->
                 <div>
                     <h2 class="text-lg font-bold text-gray-800 tracking-tight mt-4">Kasa & Tahsilat Özeti (Bugün)</h2>
                 </div>
@@ -295,7 +298,7 @@
                 </div>
             </div>
 
-            <!-- Customers -->
+            <!-- Customers (Eski Temiz Hal) -->
             <div id="view-customers" class="view-section hidden fade-in space-y-4 h-full flex flex-col">
                 <h1 class="text-3xl font-bold text-gray-800 tracking-tight">Müşteriler</h1>
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-3">
@@ -349,7 +352,7 @@
                     <div class="bg-red-50 p-5 rounded-2xl border border-red-100 shadow-sm"><p class="text-sm font-medium text-red-600">İptal Edilen</p><p class="text-3xl font-black text-red-800 mt-1" id="rep-cancelled">0</p></div>
                     <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100 shadow-sm"><p class="text-sm font-medium text-blue-600">Toplam Ciro</p><p class="text-3xl font-black text-blue-800 mt-1" id="rep-revenue">₺0</p></div>
                     
-                    <!-- Rapor Tahsilat Kırılımı (YENİ) -->
+                    <!-- Rapor Tahsilat Kırılımı -->
                     <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm"><p class="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Nakit Tahsilat</p><p class="text-xl font-black text-gray-800 mt-1" id="rep-cash">₺0</p></div>
                     <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm"><p class="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Kredi Kartı</p><p class="text-xl font-black text-gray-800 mt-1" id="rep-cc">₺0</p></div>
                     <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm"><p class="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Havale / EFT</p><p class="text-xl font-black text-gray-800 mt-1" id="rep-transfer">₺0</p></div>
@@ -372,7 +375,7 @@
                         <p class="text-sm text-gray-500 mt-1 flex items-center gap-1">📍 <span id="od-address"></span></p>
                         <div class="flex flex-wrap items-center gap-2 mt-2">
                             <p class="text-xs font-bold text-gray-400 bg-gray-100 inline-block px-2 py-1 rounded">Teslim: <span id="od-delivery-date"></span></p>
-                            <!-- YENİ: Teslimat Saati Rozeti -->
+                            <!-- Teslimat Saati Rozeti -->
                             <p id="od-delivered-at-badge" class="hidden text-[11px] font-black text-emerald-700 bg-emerald-100 border border-emerald-200 inline-block px-2 py-1 rounded uppercase tracking-wider shadow-sm">
                                 ✅ Resmi Teslim: <span id="od-delivered-at-time"></span>
                             </p>
@@ -385,7 +388,7 @@
                     <table class="w-full text-sm"><tbody id="od-items-list" class="divide-y divide-gray-100"></tbody></table>
                 </div>
                 
-                <!-- Tahsilat Bilgisi Modal İçinde (YENİ) -->
+                <!-- Tahsilat Bilgisi -->
                 <div id="od-payment-info" class="hidden mb-4 bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex justify-between items-center">
                     <div>
                         <p class="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Tahsilat Bilgisi</p>
@@ -425,8 +428,8 @@
         // WA MESSAGE API AYARLARI
         // ==========================================
         const WA_API_KEY = "3bcbbb6a-2aa9-4e6f-a9ed-f58fb45c330f";
-        const WA_API_URL = "https://api.toplusms.app/wp/send/message"; // Kendi linkinizle değiştirin
-        const WA_REG_ID = "3291916684"; // WhatsApp Cihaz ID'niz
+        const WA_API_URL = "https://app.wamessage.app/apiIntegration"; // Bulduğunuz mesaj atma adresiyle değiştirebilirsiniz
+        const WA_REG_ID = "3291916684";
         // ==========================================
 
         const firebaseConfig = {
@@ -455,7 +458,7 @@
             if(id === 'new-order') {
                 document.getElementById('no-customer-name').value = ''; document.getElementById('no-customer-address').value = ''; document.getElementById('no-customer-phone').value = '';
                 document.getElementById('no-customer-select').value = ''; 
-                document.getElementById('no-delivery-date').value = new Date().toISOString().split('T')[0]; // Bugün
+                document.getElementById('no-delivery-date').value = new Date().toISOString().split('T')[0];
                 state.currentOrderItems = []; renderOrderItems();
             }
             if(id === 'orders') {
@@ -474,7 +477,6 @@
         async function sendWaMessage(phoneRaw, messageText) {
             if(!phoneRaw) return;
             
-            // Telefon numarasını temizle ve API'nin istediği +90... formatına çevir
             let phone = phoneRaw.replace(/\D/g, '');
             if(phone.startsWith('0')) phone = phone.substring(1);
             if(phone.length === 10) phone = '90' + phone;
@@ -483,10 +485,7 @@
             try {
                 await fetch(WA_API_URL, {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json', 
-                        'X-Api-Key': WA_API_KEY 
-                    },
+                    headers: { 'Content-Type': 'application/json', 'X-Api-Key': WA_API_KEY },
                     body: JSON.stringify({ 
                         phone: phone, 
                         message: messageText,
@@ -495,10 +494,7 @@
                         instance_id: WA_REG_ID
                     })
                 });
-                console.log("Mesaj başarıyla tetiklendi:", phone);
-            } catch(e) { 
-                console.error("WhatsApp API Hatası:", e); 
-            }
+            } catch(e) { console.error("WhatsApp API Hatası:", e); }
         }
 
         // Oturum Yönetimi
@@ -531,13 +527,12 @@
                         delivered++; 
                         rev+=o.total; 
                         
-                        // Ödeme yöntemi ayrıştırması
-                        const amt = o.collectedAmount || o.total;
+                        const amt = o.collectedAmount !== undefined ? o.collectedAmount : o.total;
                         if(o.paymentMethod === 'Nakit') cash += amt;
                         else if(o.paymentMethod === 'Kredi Kartı') cc += amt;
                         else if(o.paymentMethod === 'Havale/EFT') transfer += amt;
                         else if(o.paymentMethod === 'Veresiye (Ödenmedi)') unpaid += amt;
-                        else cash += amt; // Eski siparişler veya yöntem seçilmemişler için varsayılan nakit
+                        else cash += amt;
                     } 
                     else if(o.status!=='İptal Edildi') { pending++; }
                 }
@@ -547,7 +542,6 @@
             document.getElementById('stat-pending-orders').textContent = pending;
             document.getElementById('stat-total-revenue').textContent = '₺'+rev.toLocaleString('tr-TR');
             
-            // Kasa Özeti Ekrana Yazdırma
             document.getElementById('stat-cash').textContent = '₺'+cash.toLocaleString('tr-TR');
             document.getElementById('stat-cc').textContent = '₺'+cc.toLocaleString('tr-TR');
             document.getElementById('stat-transfer').textContent = '₺'+transfer.toLocaleString('tr-TR');
@@ -654,10 +648,9 @@
             });
             
             if(!document.getElementById('no-customer-select').value) {
-                await addDoc(collection(db, 'customers'), { name: cName, phone: customerPhone, address: document.getElementById('no-customer-address').value, debt: 0 });
+                await addDoc(collection(db, 'customers'), { name: cName, phone: customerPhone, address: document.getElementById('no-customer-address').value });
             }
 
-            // WhatsApp Mesajı Gönderimi
             if(customerPhone) {
                 const itemsText = items.map(i => `${i.qty}x ${i.name}`).join('\n- ');
                 const waMsg = `Merhaba ${cName},\n*${orderNumber}* numaralı siparişiniz başarıyla alınmıştır. 📦\n\n*Sipariş Özeti:*\n- ${itemsText}\n\n*Genel Toplam:* ₺${total.toLocaleString('tr-TR')}\n\nBizi tercih ettiğiniz için teşekkür ederiz!`;
@@ -680,11 +673,9 @@
             document.getElementById('od-status-badge').className = `px-3 py-1 rounded-full text-xs font-bold shadow-sm ${badgeClass}`;
             document.getElementById('od-status-badge').textContent = o.status;
             
-            // YENİ: Teslimat Zamanını ve Saatini Gösterme Algoritması
             if (o.status === 'Teslim Edildi' && o.deliveredAt) {
                 document.getElementById('od-delivered-at-badge').classList.remove('hidden');
                 const dTime = new Date(o.deliveredAt);
-                // Örn Çıktı: 02.09.2026 - 21:09
                 document.getElementById('od-delivered-at-time').textContent = dTime.toLocaleDateString('tr-TR') + ' - ' + dTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
             } else {
                 document.getElementById('od-delivered-at-badge').classList.add('hidden');
@@ -693,7 +684,6 @@
             document.getElementById('od-items-list').innerHTML = o.items.map(i=>`<tr><td class="py-3 border-b font-medium">${i.name}</td><td class="py-3 border-b text-center text-gray-500">${i.qty}x</td><td class="py-3 border-b text-right font-bold">₺${i.total}</td></tr>`).join('');
             document.getElementById('od-total').textContent = '₺'+o.total.toLocaleString('tr-TR');
             
-            // Tahsilat detayını modalda göster
             if (o.status === 'Teslim Edildi' && o.paymentMethod) {
                 document.getElementById('od-payment-info').classList.remove('hidden');
                 document.getElementById('od-method-text').textContent = o.paymentMethod;
@@ -733,7 +723,6 @@
             const driver = state.drivers.find(d=>d.id === o.driverId);
             document.getElementById('print-driver').textContent = driver ? driver.name : 'Atanmadı';
             
-            // Satır tasarımını kalın, geniş ve premium görünümlü hale getiriyoruz
             document.getElementById('print-items').innerHTML = o.items.map(i=>`<tr><td class="py-6 font-bold text-gray-800">${i.name} <div class="text-lg text-gray-400 font-medium mt-1">Birim Fiyat: ₺${i.price}</div></td><td class="py-6 text-center font-black text-gray-600">${i.qty}</td><td class="py-6 text-right font-black text-gray-900">₺${i.total}</td></tr>`).join('');
             document.getElementById('print-total').textContent = '₺'+o.total.toLocaleString('tr-TR');
             
@@ -760,16 +749,15 @@
             document.getElementById('print-list-date').textContent = filterDate.split('-').reverse().join('.');
             let html = '';
             
-            let listGrandTotal = 0; // Beklenen Sipariş Toplamı
-            let listCollected = 0;  // Gerçekten Tahsil Edilen Para
+            let listGrandTotal = 0; 
+            let listCollected = 0;  
 
             filtered.forEach((o, index) => {
-                listGrandTotal += o.total; // Toplam fiyata ekle
+                listGrandTotal += o.total; 
                 
                 let rowCollectedText = '-';
                 let rowCollectedAmount = 0;
 
-                // Eğer sipariş teslim edildiyse tahsilat değerlerini çek
                 if (o.status === 'Teslim Edildi') {
                     rowCollectedAmount = o.collectedAmount !== undefined ? o.collectedAmount : o.total;
                     listCollected += rowCollectedAmount;
@@ -788,10 +776,8 @@
                 </tr>`;
             });
             
-            // Eksik / Kalan (Veresiye) Tutarı Hesapla
             const listUnpaid = listGrandTotal - listCollected;
             
-            // HTML'e yazdırma
             document.getElementById('print-list-items').innerHTML = html;
             document.getElementById('print-list-grand-total').textContent = '₺' + listGrandTotal.toLocaleString('tr-TR');
             document.getElementById('print-list-collected').textContent = '₺' + listCollected.toLocaleString('tr-TR');
@@ -825,7 +811,7 @@
                         tDelivered++; 
                         tRev += o.total; 
                         
-                        const amt = o.collectedAmount || o.total;
+                        const amt = o.collectedAmount !== undefined ? o.collectedAmount : o.total;
                         if(o.paymentMethod === 'Nakit') rCash += amt;
                         else if(o.paymentMethod === 'Kredi Kartı') rCc += amt;
                         else if(o.paymentMethod === 'Havale/EFT') rTransfer += amt;
