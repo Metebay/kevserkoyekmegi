@@ -678,6 +678,10 @@
         window.printReceipt = () => {
             const o = state.currentOrder;
             if(!o) return;
+            
+            document.body.classList.add('printing-receipt');
+            document.body.classList.remove('printing-list');
+            
             document.getElementById('print-order-no').textContent = o.orderNumber;
             document.getElementById('print-date').textContent = o.deliveryDate ? o.deliveryDate.split('-').reverse().join('.') : new Date().toLocaleDateString('tr-TR');
             document.getElementById('print-c-name').textContent = o.customerName;
@@ -687,7 +691,11 @@
             
             document.getElementById('print-items').innerHTML = o.items.map(i=>`<tr><td class="py-3 border-b">${i.name} <div class="text-xs text-gray-500">Birim: ₺${i.price}</div></td><td class="py-3 border-b text-center">${i.qty}</td><td class="py-3 border-b text-right font-bold">₺${i.total}</td></tr>`).join('');
             document.getElementById('print-total').textContent = '₺'+o.total.toLocaleString('tr-TR');
-            window.print();
+            
+            setTimeout(() => {
+                window.print();
+                setTimeout(() => document.body.classList.remove('printing-receipt'), 500);
+            }, 100);
         };
 
         window.printDailyList = () => {
@@ -700,6 +708,9 @@
             });
             
             if(filtered.length === 0) return showToast('Seçilen tarihte yazdırılacak sipariş yok.');
+
+            document.body.classList.add('printing-list');
+            document.body.classList.remove('printing-receipt');
 
             document.getElementById('print-list-date').textContent = filterDate.split('-').reverse().join('.');
             let html = '';
@@ -714,7 +725,11 @@
                 </tr>`;
             });
             document.getElementById('print-list-items').innerHTML = html;
-            window.print();
+            
+            setTimeout(() => {
+                window.print();
+                setTimeout(() => document.body.classList.remove('printing-list'), 500);
+            }, 100);
         };
 
         window.generateReport = () => {
