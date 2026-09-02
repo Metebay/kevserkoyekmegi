@@ -654,7 +654,7 @@
             });
             
             if(!document.getElementById('no-customer-select').value) {
-                await addDoc(collection(db, 'customers'), { name: cName, phone: customerPhone, address: document.getElementById('no-customer-address').value });
+                await addDoc(collection(db, 'customers'), { name: cName, phone: customerPhone, address: document.getElementById('no-customer-address').value, debt: 0 });
             }
 
             // WhatsApp Mesajı Gönderimi
