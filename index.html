@@ -103,6 +103,14 @@
             </thead>
             <tbody id="print-list-items" class="divide-y divide-gray-300"></tbody>
         </table>
+        
+        <!-- Günlük Liste Toplamı Alanı (Eksik olan kısım eklendi) -->
+        <div class="mt-6 border-t-4 border-gray-900 pt-4 flex justify-end">
+            <div class="bg-gray-100 p-4 rounded-xl border border-gray-300 text-right min-w-[300px]">
+                <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Günlük Liste Toplamı</p>
+                <p class="text-3xl font-black text-gray-900" id="print-list-grand-total">₺0</p>
+            </div>
+        </div>
     </div>
 
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
@@ -736,7 +744,11 @@
 
             document.getElementById('print-list-date').textContent = filterDate.split('-').reverse().join('.');
             let html = '';
+            let listGrandTotal = 0; // Toplam Tutar Değişkeni
+
             filtered.forEach((o, index) => {
+                listGrandTotal += o.total; // Her siparişi toplama ekle
+                
                 const itemsText = o.items.map(i => `${i.qty}x ${i.name}`).join(', ');
                 html += `<tr>
                     <td class="py-3 border-b font-bold">${index + 1}</td>
@@ -746,7 +758,10 @@
                     <td class="py-3 border-b text-center"></td>
                 </tr>`;
             });
+            
+            // HTML'e yazdırma
             document.getElementById('print-list-items').innerHTML = html;
+            document.getElementById('print-list-grand-total').textContent = '₺' + listGrandTotal.toLocaleString('tr-TR');
             
             setTimeout(() => {
                 window.print();
