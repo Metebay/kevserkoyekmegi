@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sipariş Ver - Kevser Ekmek</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="text-gray-800 min-h-screen flex flex-col pb-safe">
+
+    <!-- Toast -->
+    <div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 w-[90%] max-w-sm pointer-events-none"></div>
+
+    <!-- Header -->
+    <header class="bg-gray-900 text-white pt-8 pb-10 px-6 rounded-b-[2.5rem] shadow-xl relative z-10">
+        <h1 class="text-3xl font-black tracking-tighter">KEVSER EKMEK</h1>
+        <p class="text-gray-400 text-sm font-medium mt-1">Hızlı Sipariş Sistemi</p>
+    </header>
+
+    <!-- Main Content -->
+    <div class="px-5 -mt-6 flex-1 flex flex-col relative z-20 pb-10">
+        
+        <!-- Adım 1: Müşteri Bilgileri -->
+        <div class="bg-white rounded-[2rem] shadow-lg shadow-gray-200/50 p-6 mb-6 border border-gray-100 fade-in">
+            <h2 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs">1</span> 
+                İletişim Bilgileriniz
+            </h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Telefon Numaranız</label>
+                    <div class="flex gap-2">
+                        <input type="tel" id="c-phone" placeholder="05XX..." class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm font-bold text-gray-800 outline-none focus:border-gray-900 transition bg-gray-50">
+                        <button onclick="checkCustomer()" class="bg-gray-900 text-white px-4 rounded-xl text-sm font-bold shadow-md">Bul</button>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1">Kayıtlıysanız bilgileriniz otomatik dolar.</p>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Ad Soyad / İşletme</label>
+                    <input type="text" id="c-name" placeholder="Örn: Ahmet Bakkal" class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm font-medium outline-none focus:border-gray-900 transition bg-gray-50">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Teslimat Adresi</label>
+                    <textarea id="c-address" rows="2" placeholder="Tam adresinizi yazın..." class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm font-medium outline-none focus:border-gray-900 transition bg-gray-50 resize-none"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Adım 2: Ürünler ve Sepet -->
+        <div class="bg-white rounded-[2rem] shadow-lg shadow-gray-200/50 p-6 flex flex-col flex-1 border border-gray-100 fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-bold text-gray-800 flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs">2</span> 
+                    Sipariş Sepeti
+                </h2>
+                <button onclick="addCartItem()" class="text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold px-3 py-1.5 rounded-lg transition">+ Ürün Ekle</button>
+            </div>
+            
+            <div id="cart-container" class="space-y-3 mb-6 flex-1">
+                <!-- Sepet ürünleri buraya gelecek -->
+            </div>
+
+            <div class="border-t-2 border-gray-100 pt-5 mt-auto">
+                <div class="flex justify-between items-end mb-5">
+                    <span class="text-gray-400 font-bold text-sm uppercase tracking-widest">Genel Toplam</span>
+                    <span id="cart-total" class="text-3xl font-black text-gray-900">₺0</span>
+                </div>
+                <button onclick="submitOrder()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-600/30 transition-all active:scale-[0.98] text-lg">Siparişi Onayla ve Gönder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Başarılı Modalı -->
+    <div id="success-modal" class="hidden fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-5">
+        <div class="bg-white rounded-[2rem] shadow-2xl p-8 text-center max-w-sm w-full fade-in">
+            <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <span class="text-4xl">🎉</span>
+            </div>
+            <h3 class="text-2xl font-black text-gray-900 mb-2">Siparişiniz Alındı!</h3>
+            <p class="text-gray-500 font-medium mb-6 text-sm">Siparişiniz fırınımıza ulaştı. En kısa sürede şoförlerimiz tarafından yola çıkarılacaktır.</p>
+            <button onclick="location.reload()" class="w-full bg-gray-900 text-white font-bold py-3.5 rounded-xl">Yeni Sipariş Ver</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7h2h4dTNA_NuRWlacOP6mxcgRlFjpxHQ",
+            authDomain: "sohbet-631fa.firebaseapp.com",
+            databaseURL: "https://sohbet-631fa-default-rtdb.firebaseio.com",
+            projectId: "sohbet-631fa",
+            storageBucket: "sohbet-631fa.firebasestorage.app",
+            messagingSenderId: "642336277638",
+            appId: "1:642336277638:web:b1d6614994f0ba72167d07"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let products = [];
+        let cartItems = [];
+
+        window.showToast = (msg) => {
+            const c = document.getElementById('toast-container');
+            const t = document.createElement('div'); t.className = 'bg-gray-900 text-white px-5 py-3.5 rounded-2xl text-sm font-bold shadow-2xl fade-in text-center'; t.textContent = msg;
+            c.appendChild(t); setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(()=>t.remove(),300); }, 2500);
+        };
+
+        // Başlangıç: Ürünleri çek ve Anonim Giriş yap
+        async function init() {
+            await signInAnonymously(auth);
+            const pSnapshot = await getDocs(collection(db, 'products'));
+            products = pSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            addCartItem(); // İlk boş satırı ekle
+        }
+
+        // Müşteri telefon numarasına göre bulma
+        window.checkCustomer = async () => {
+            const phone = document.getElementById('c-phone').value.trim();
+            if(!phone || phone.length < 10) return showToast('Geçerli bir telefon numarası girin.');
+            
+            const q = query(collection(db, 'customers'), where('phone', '==', phone));
+            const snap = await getDocs(q);
+            
+            if(!snap.empty) {
+                const c = snap.docs[0].data();
+                document.getElementById('c-name').value = c.name;
+                document.getElementById('c-address').value = c.address;
+                showToast('Bilgileriniz bulundu! ✅');
+            } else {
+                showToast('Yeni kayıt! Lütfen bilgilerinizi doldurun.');
+            }
+        };
+
+        // Sepet Yönetimi
+        window.addCartItem = () => { cartItems.push({id: Date.now(), pId: '', qty: 1}); renderCart(); };
+        window.updateCart = (id, field, val) => { const item = cartItems.find(i=>i.id==id); item[field] = val; renderCart(); };
+        window.removeCartItem = (id) => { cartItems = cartItems.filter(i=>i.id!=id); renderCart(); };
+
+        function renderCart() {
+            let total = 0;
+            const productOptions = '<option value="">Seçiniz...</option>' + products.map(p => `<option value="${p.id}">${p.name} (₺${p.price})</option>`).join('');
+
+            document.getElementById('cart-container').innerHTML = cartItems.map(i => {
+                const p = products.find(x => x.id === i.pId);
+                const price = p ? p.price : 0;
+                const lineTotal = price * Number(i.qty);
+                total += lineTotal;
+                
+                return `
+                <div class="flex gap-2 items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 relative">
+                    <select onchange="updateCart(${i.id}, 'pId', this.value)" class="border-none bg-white shadow-sm p-2 rounded-lg text-sm font-bold text-gray-800 flex-1 outline-none">
+                        ${'<option value="">Seçiniz...</option>' + products.map(px => `<option value="${px.id}" ${i.pId===px.id?'selected':''}>${px.name}</option>`).join('')}
+                    </select>
+                    <input type="number" min="1" value="${i.qty}" onchange="updateCart(${i.id}, 'qty', this.value)" class="border-none bg-white shadow-sm p-2 rounded-lg text-sm font-bold text-center w-16 outline-none">
+                    <div class="w-16 text-right font-black text-gray-900">₺${lineTotal}</div>
+                    <button onclick="removeCartItem(${i.id})" class="absolute -top-2 -right-2 w-6 h-6 bg-red-100 text-red-600 rounded-full font-bold flex items-center justify-center hover:bg-red-200 shadow-sm">&times;</button>
+                </div>`;
+            }).join('');
+            
+            document.getElementById('cart-total').textContent = '₺' + total.toLocaleString('tr-TR');
+        }
+
+        // Siparişi Gönderme
+        window.submitOrder = async () => {
+            const phone = document.getElementById('c-phone').value.trim();
+            const name = document.getElementById('c-name').value.trim();
+            const address = document.getElementById('c-address').value.trim();
+            
+            if(!phone || !name || !address) return showToast('Lütfen İletişim Bilgilerini eksiksiz doldurun!');
+            
+            const validItems = cartItems.filter(i => i.pId).map(i => {
+                const p = products.find(x => x.id === i.pId);
+                return { pId: p.id, name: p.name, qty: Number(i.qty), price: p.price, total: p.price * Number(i.qty) };
+            });
+
+            if(validItems.length === 0) return showToast('Lütfen sepetinize ürün ekleyin.');
+
+            const total = validItems.reduce((sum, i) => sum + i.total, 0);
+            const orderNumber = '#WEB' + Date.now().toString().slice(-4);
+            const today = new Date().toISOString().split('T')[0]; // Bugünün tarihi
+
+            // Müşteriyi kontrol et, yoksa kaydet
+            const q = query(collection(db, 'customers'), where('phone', '==', phone));
+            const snap = await getDocs(q);
+            if(snap.empty) {
+                await addDoc(collection(db, 'customers'), { name, phone, address, debt: 0 });
+            }
+
+            // Siparişi Firebase'e Ekle
+            await addDoc(collection(db, 'orders'), {
+                orderNumber: orderNumber,
+                customerName: name,
+                phone: phone,
+                address: address,
+                deliveryDate: today, // Yarın teslim seçeneği de eklenebilir.
+                driverId: "", // Henüz şoför atanmadı
+                status: 'Bekliyor',
+                total: total,
+                items: validItems,
+                createdAt: serverTimestamp(),
+                source: 'Web Sipariş'
+            });
+
+            document.getElementById('success-modal').classList.remove('hidden');
+        };
+
+        init();
+    </script>
+</body>
+</html>
