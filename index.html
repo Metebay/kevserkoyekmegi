@@ -19,14 +19,19 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
         /* A4 Yazdırma Ayarları */
-        @media screen { #print-area, #print-list-area { display: none; } }
+        @media screen { #print-area, #print-list-area { display: none !important; } }
         @media print {
             @page { size: A4; margin: 15mm; }
             body * { visibility: hidden; }
-            #print-area, #print-area * { visibility: visible; }
-            #print-area { display: block; position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; }
-            #print-list-area, #print-list-area * { visibility: visible; }
-            #print-list-area { display: block; position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; }
+            
+            body.printing-receipt #print-area, body.printing-receipt #print-area * { visibility: visible; }
+            body.printing-receipt #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+            body.printing-receipt #print-list-area { display: none !important; }
+
+            body.printing-list #print-list-area, body.printing-list #print-list-area * { visibility: visible; }
+            body.printing-list #print-list-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+            body.printing-list #print-area { display: none !important; }
+            
             .no-print { display: none !important; }
         }
     </style>
@@ -34,13 +39,15 @@
 <body class="text-gray-800 overflow-hidden h-screen w-screen flex flex-col">
     
     <div id="print-area" class="p-8 bg-white text-black hidden">
-        <div class="border-b-2 border-gray-800 pb-4 mb-6 flex justify-between items-center">
+        <div class="border-b-2 border-gray-800 pb-4 mb-6 flex justify-between items-start">
             <div>
-                <h1 class="text-3xl font-black tracking-tighter">SİPARİŞ FİŞİ</h1>
-                <p class="text-gray-500 text-sm">Resmi Teslimat Belgesi</p>
+                <h1 class="text-4xl font-black tracking-tighter">KEVSER EKMEK</h1>
+                <p class="font-bold text-gray-800 mt-1">+90 532 410 11 39</p>
+                <p class="text-sm text-gray-600 mt-1 font-medium">Sanayi Mahallesi 60101 Nolu Cadde<br>No: 14 Şehitkamil / Gaziantep</p>
             </div>
             <div class="text-right">
-                <p class="text-xl font-bold" id="print-order-no">#000000</p>
+                <h2 class="text-2xl font-black text-gray-600">SİPARİŞ FİŞİ</h2>
+                <p class="text-xl font-bold mt-1" id="print-order-no">#000000</p>
                 <p class="text-sm text-gray-500" id="print-date">Tarih</p>
             </div>
         </div>
