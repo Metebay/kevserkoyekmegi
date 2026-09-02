@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sipariş Takip - Kevser Ekmek</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1e293b;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-gray-800 min-h-screen flex flex-col pb-safe">
+
+    <!-- Header -->
+    <header class="bg-gray-900 text-white pt-8 pb-10 px-6 rounded-b-[2.5rem] shadow-xl relative z-10 text-center">
+        <h1 class="text-3xl font-black tracking-tighter">KEVSER EKMEK</h1>
+        <p class="text-gray-400 text-sm font-medium mt-1">Sipariş Takip Sistemi</p>
+    </header>
+
+    <!-- Main Content -->
+    <div class="px-5 -mt-6 flex-1 flex flex-col relative z-20 pb-10 max-w-md mx-auto w-full">
+        
+        <!-- Arama Kutusu -->
+        <div class="bg-white rounded-[2rem] shadow-lg shadow-gray-200/50 p-6 mb-6 border border-gray-100 fade-in">
+            <p class="text-sm text-gray-500 mb-4 text-center font-medium">Siparişinizin durumunu öğrenmek için telefon numaranızı girin.</p>
+            
+            <div class="flex gap-2">
+                <input type="tel" id="search-phone" placeholder="05XX..." class="w-full border-2 border-gray-200 rounded-xl p-3.5 text-sm font-bold text-gray-800 outline-none focus:border-gray-900 transition bg-gray-50 text-center tracking-widest">
+            </div>
+            <button onclick="searchOrders()" id="search-btn" class="w-full bg-gray-900 hover:bg-black text-white px-4 py-3.5 rounded-xl text-sm font-bold shadow-xl shadow-gray-900/20 mt-3 transition flex items-center justify-center gap-2">
+                Sorgula
+            </button>
+        </div>
+
+        <!-- Sonuç Alanı -->
+        <div id="results-container" class="space-y-4">
+            <!-- JavaScript ile doldurulacak -->
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7h2h4dTNA_NuRWlacOP6mxcgRlFjpxHQ",
+            authDomain: "sohbet-631fa.firebaseapp.com",
+            databaseURL: "https://sohbet-631fa-default-rtdb.firebaseio.com",
+            projectId: "sohbet-631fa",
+            storageBucket: "sohbet-631fa.firebasestorage.app",
+            messagingSenderId: "642336277638",
+            appId: "1:642336277638:web:b1d6614994f0ba72167d07"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Gizli Giriş Yap (Veritabanı okuma izni için)
+        signInAnonymously(auth);
+
+        window.searchOrders = async () => {
+            const phoneInput = document.getElementById('search-phone').value.trim();
+            const btn = document.getElementById('search-btn');
+            const container = document.getElementById('results-container');
+            
+            if(!phoneInput) {
+                alert("Lütfen telefon numaranızı girin!");
+                return;
+            }
+
+            // Butonu Yükleniyor Durumuna Getir
+            btn.innerHTML = '<div class="loader border-t-white"></div> Sorgulanıyor...';
+            btn.disabled = true;
+
+            try {
+                // Firebase'den numaraya göre siparişleri ara
+                const q = query(collection(db, 'orders'), where('phone', '==', phoneInput));
+                const querySnapshot = await getDocs(q);
+                
+                // Siparişleri hafızaya alıp tarihe göre (en yeni en üstte) sırala
+                let orders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                orders.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+
+                container.innerHTML = '';
+
+                if(orders.length === 0) {
+                    container.innerHTML = `
+                        <div class="bg-white p-8 rounded-[2rem] text-center border border-gray-100 shadow-sm fade-in">
+                            <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">🤷‍♂️</div>
+                            <h3 class="font-bold text-gray-800 text-lg">Kayıt Bulunamadı</h3>
+                            <p class="text-sm text-gray-500 mt-2">Bu numaraya ait bir sipariş bulamadık. Numaranızı kontrol edip tekrar deneyin.</p>
+                        </div>
+                    `;
+                } else {
+                    // Sadece son 5 siparişi gösterelim (ekranı boğmamak için)
+                    const recentOrders = orders.slice(0, 5);
+                    
+                    recentOrders.forEach(o => {
+                        let statusColor = 'bg-gray-100 text-gray-600 border-gray-200';
+                        let statusIcon = '⏳';
+                        
+                        // Duruma Göre Renk ve İkon Ayarı
+                        if(o.status === 'Bekliyor') { statusColor = 'bg-gray-100 text-gray-700 border-gray-200'; statusIcon = '⏳'; }
+                        if(o.status === 'Hazırlanıyor') { statusColor = 'bg-amber-50 text-amber-700 border-amber-200'; statusIcon = '🔥'; }
+                        if(o.status === 'Yola Çıktı') { statusColor = 'bg-blue-50 text-blue-700 border-blue-200'; statusIcon = '🚚'; }
+                        if(o.status === 'Teslim Edildi') { statusColor = 'bg-emerald-50 text-emerald-700 border-emerald-200'; statusIcon = '✅'; }
+                        if(o.status === 'İptal Edildi') { statusColor = 'bg-red-50 text-red-700 border-red-200'; statusIcon = '❌'; }
+
+                        const dateText = o.createdAt ? o.createdAt.toDate().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute:'2-digit' }) : '-';
+                        const itemsHtml = o.items ? o.items.map(i => `<div class="flex justify-between text-xs py-1.5 border-b border-gray-50 last:border-0"><span class="font-medium text-gray-700">${i.qty}x ${i.name}</span><span class="text-gray-500">₺${i.total}</span></div>`).join('') : '';
+
+                        container.innerHTML += `
+                            <div class="bg-white rounded-[1.5rem] shadow-sm border border-gray-100 p-5 fade-in">
+                                <div class="flex justify-between items-start mb-3 border-b border-gray-100 pb-3">
+                                    <div>
+                                        <p class="text-[10px] font-black text-gray-400 tracking-widest">${o.orderNumber || 'SİPARİŞ'}</p>
+                                        <p class="text-xs font-medium text-gray-500 mt-0.5">${dateText}</p>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 border ${statusColor} px-3 py-1.5 rounded-full shadow-sm">
+                                        <span class="text-sm">${statusIcon}</span>
+                                        <span class="text-[11px] font-black uppercase tracking-wider">${o.status}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-gray-50/50 rounded-xl p-3 mb-3">
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase mb-2">Sipariş İçeriği</p>
+                                    ${itemsHtml}
+                                </div>
+                                
+                                <div class="flex justify-between items-end mt-2 px-1">
+                                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Toplam Tutar</span>
+                                    <span class="text-2xl font-black text-gray-900">₺${o.total.toLocaleString('tr-TR')}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            } catch (error) {
+                console.error("Arama Hatası:", error);
+                alert("Bir bağlantı hatası oluştu. Lütfen tekrar deneyin.");
+            } finally {
+                btn.innerHTML = 'Sorgula';
+                btn.disabled = false;
+            }
+        };
+
+        // Enter tuşuna basılınca arama yapmasını sağla
+        document.getElementById('search-phone').addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                window.searchOrders();
+            }
+        });
+    </script>
+</body>
+</html>
