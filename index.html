@@ -744,24 +744,43 @@
 
             document.getElementById('print-list-date').textContent = filterDate.split('-').reverse().join('.');
             let html = '';
-            let listGrandTotal = 0; // Toplam Tutar Değişkeni
+            
+            let listGrandTotal = 0; // Beklenen Sipariş Toplamı
+            let listCollected = 0;  // Gerçekten Tahsil Edilen Para
 
             filtered.forEach((o, index) => {
-                listGrandTotal += o.total; // Her siparişi toplama ekle
+                listGrandTotal += o.total; // Toplam fiyata ekle
+                
+                let rowCollectedText = '-';
+                let rowCollectedAmount = 0;
+
+                // Eğer sipariş teslim edildiyse tahsilat değerlerini çek
+                if (o.status === 'Teslim Edildi') {
+                    rowCollectedAmount = o.collectedAmount !== undefined ? o.collectedAmount : o.total;
+                    listCollected += rowCollectedAmount;
+                    rowCollectedText = `₺${rowCollectedAmount} <div class="text-[9px] text-gray-500 uppercase tracking-wider font-bold mt-1">${o.paymentMethod || 'Nakit'}</div>`;
+                }
                 
                 const itemsText = o.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+                
                 html += `<tr>
-                    <td class="py-3 border-b font-bold">${index + 1}</td>
-                    <td class="py-3 border-b"><div class="font-bold">${o.customerName}</div><div class="text-xs text-gray-600">${o.address||'-'}</div></td>
-                    <td class="py-3 border-b text-xs">${itemsText}</td>
-                    <td class="py-3 border-b text-right font-bold whitespace-nowrap">₺${o.total}</td>
-                    <td class="py-3 border-b text-center"></td>
+                    <td class="py-4 border-b font-bold text-gray-900">${index + 1}</td>
+                    <td class="py-4 border-b"><div class="font-bold text-gray-900 text-sm">${o.customerName}</div><div class="text-[11px] text-gray-600 mt-0.5">${o.address||'-'}</div></td>
+                    <td class="py-4 border-b text-xs max-w-[200px] text-gray-700 font-medium leading-relaxed">${itemsText}</td>
+                    <td class="py-4 border-b text-right font-black text-gray-500 whitespace-nowrap">₺${o.total}</td>
+                    <td class="py-4 border-b text-right font-black text-emerald-700 whitespace-nowrap">${rowCollectedText}</td>
+                    <td class="py-4 border-b text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider">${o.status === 'Teslim Edildi' ? '✓ Teslim' : ''}</td>
                 </tr>`;
             });
+            
+            // Eksik / Kalan (Veresiye) Tutarı Hesapla
+            const listUnpaid = listGrandTotal - listCollected;
             
             // HTML'e yazdırma
             document.getElementById('print-list-items').innerHTML = html;
             document.getElementById('print-list-grand-total').textContent = '₺' + listGrandTotal.toLocaleString('tr-TR');
+            document.getElementById('print-list-collected').textContent = '₺' + listCollected.toLocaleString('tr-TR');
+            document.getElementById('print-list-unpaid').textContent = '₺' + listUnpaid.toLocaleString('tr-TR');
             
             setTimeout(() => {
                 window.print();
